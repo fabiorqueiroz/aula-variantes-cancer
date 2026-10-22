@@ -19,7 +19,10 @@
         "workbench.startupEditor": "none",
         "workbench.editorAssociations": {
           "*.md": "vscode.markdown.preview.editor"
-        }
+        },
+        "terminal.integrated.enableMultiLinePasteWarning": "never",
+        "terminal.integrated.fontSize": 15,
+        "editor.fontSize": 15
       }
     },
     "codespaces": {
