@@ -2,7 +2,7 @@
 
 **Bioinformática aplicada ao estudo do câncer · IEC – PUC Minas · Prof. Dr. Fábio Ribeiro Queiroz**
 
-Este guia segue as mesmas etapas do roteiro da aula, já com os caminhos dos arquivos deste repositório. Copie e cole os comandos no terminal, **na ordem**, um bloco de cada vez.
+Este guia segue as mesmas etapas do roteiro da aula, já com os caminhos dos arquivos deste repositório. Copie e cole os comandos no terminal, **na ordem**, um bloco de cada vez. Todos os alunos processam os **12 pacientes**, para que o maftools tenha uma coorte inteira para analisar.
 
 > **Sobre os dados.** São 12 pacientes **simulados** (não são dados reais), sequenciados com um painel de captura de 13 genes: `BRCA1`, `BRCA2`, `PALB2`, `TP53`, `MLH1`, `MSH2`, `APC`, `PTEN`, `CDH1`, `KRAS`, `BRAF`, `PIK3CA` e `EGFR`. As leituras (Illumina 2×150 pb) foram geradas a partir das sequências reais do genoma humano **GRCh38** e carregam variantes reais, descritas no ClinVar — algumas patogênicas, outras benignas. Os dados clínicos estão em `dados/dados_clinicos.tsv`.
 >
@@ -22,25 +22,34 @@ Confira se o ambiente está pronto:
 bash scripts/verificar_ambiente.sh
 ```
 
-Escolha a amostra com que você vai trabalhar (o professor vai indicar) e crie as pastas de resultados:
+Crie as pastas de resultados:
 
 ```bash
-AMOSTRA=P01
 mkdir -p resultados/01_fastqc_bruto resultados/02_trimagem resultados/03_fastqc_trimado \
          resultados/04_alinhamento resultados/07_variantes resultados/08_para_o_VEP resultados/09_maf
 ```
 
-> ⚠️ Se você fechar o terminal, rode de novo `AMOSTRA=P01` (com a sua amostra) antes de continuar.
+**Todos processam os 12 pacientes.** A lista das amostras está no arquivo `dados/amostras.txt`:
+
+```bash
+cat dados/amostras.txt
+```
+
+> **Como funciona o `for`.** Para não digitar o mesmo comando 12 vezes, usamos um laço:
+> `for A in $(cat dados/amostras.txt); do ... ; done`
+> O bash lê a lista e repete o que está entre `do` e `done` para cada amostra. Em cada volta, `$A` vale `P01`, depois `P02`, e assim por diante. Por isso o nome dos arquivos aparece como `${A}_R1.fastq.gz`. Cole o bloco inteiro e espere o `$` voltar.
 
 ---
 
 ## 1ª Etapa — Análise de qualidade dos dados brutos (FastQC)
 
+O FastQC aceita vários arquivos de uma vez (`*` quer dizer "todos"); `-t 2` analisa dois por vez:
+
 ```bash
-fastqc --outdir resultados/01_fastqc_bruto dados/fastq/${AMOSTRA}_R1.fastq.gz dados/fastq/${AMOSTRA}_R2.fastq.gz
+fastqc -t 2 --outdir resultados/01_fastqc_bruto dados/fastq/*.fastq.gz
 ```
 
-Abra os relatórios `resultados/01_fastqc_bruto/*_fastqc.html` (no Codespaces: clique com o botão direito no arquivo → **Show Preview**; ou → **Download** e abra no seu navegador).
+Abra os relatórios `resultados/01_fastqc_bruto/*_fastqc.html` (no Codespaces: botão direito no arquivo → **Show Preview**; ou → **Download** e abra no seu navegador).
 
 **O que observar:** compare R1 e R2 em *Per base sequence quality* (a qualidade cai no fim das leituras, sobretudo no R2) e em *Adapter Content* (adaptador Illumina aparecendo no fim das leituras — sinal de fragmentos de DNA mais curtos que 150 pb, comum em amostras tumorais FFPE).
 
@@ -48,17 +57,20 @@ Abra os relatórios `resultados/01_fastqc_bruto/*_fastqc.html` (no Codespaces: c
 
 ## 2ª Etapa — Remoção de adaptadores e bases de baixa qualidade (Trimmomatic)
 
-No ambiente da aula, `java -jar trimmomatic.jar` é simplesmente `trimmomatic`:
+No ambiente da aula, `java -jar trimmomatic.jar` é simplesmente `trimmomatic`. O relatório de cada amostra vai para um arquivo `_trimmomatic.log` (~1 minuto no total):
 
 ```bash
-trimmomatic PE -phred33 \
-  dados/fastq/${AMOSTRA}_R1.fastq.gz dados/fastq/${AMOSTRA}_R2.fastq.gz \
-  resultados/02_trimagem/${AMOSTRA}_R1_paired.fastq.gz resultados/02_trimagem/${AMOSTRA}_R1_unpaired.fastq.gz \
-  resultados/02_trimagem/${AMOSTRA}_R2_paired.fastq.gz resultados/02_trimagem/${AMOSTRA}_R2_unpaired.fastq.gz \
-  ILLUMINACLIP:dados/adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
+for A in $(cat dados/amostras.txt); do
+  echo "== Trimando $A"
+  trimmomatic PE -phred33 \
+    dados/fastq/${A}_R1.fastq.gz dados/fastq/${A}_R2.fastq.gz \
+    resultados/02_trimagem/${A}_R1_paired.fastq.gz resultados/02_trimagem/${A}_R1_unpaired.fastq.gz \
+    resultados/02_trimagem/${A}_R2_paired.fastq.gz resultados/02_trimagem/${A}_R2_unpaired.fastq.gz \
+    ILLUMINACLIP:dados/adapters.fasta:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36 \
+    2> resultados/02_trimagem/${A}_trimmomatic.log
+  grep "Input Read Pairs" resultados/02_trimagem/${A}_trimmomatic.log
+done
 ```
-
-Anote a linha final (`Input Read Pairs ... Both Surviving ...`): ela é a base da tabela de aproveitamento.
 
 > **Curiosidade:** por que muitos pares aparecem como *Forward Only Surviving*? Quando o fragmento é menor que a leitura, R1 e R2 leem exatamente o mesmo trecho de DNA (em fitas opostas). No modo *palíndromo* do `ILLUMINACLIP`, o Trimmomatic remove o adaptador e descarta o R2, que seria redundante.
 
@@ -67,40 +79,47 @@ Anote a linha final (`Input Read Pairs ... Both Surviving ...`): ela é a base d
 ## 3ª Etapa — Qualidade após a trimagem
 
 ```bash
-fastqc --outdir resultados/03_fastqc_trimado resultados/02_trimagem/${AMOSTRA}_R1_paired.fastq.gz resultados/02_trimagem/${AMOSTRA}_R2_paired.fastq.gz
+fastqc -t 2 --outdir resultados/03_fastqc_trimado resultados/02_trimagem/*_paired.fastq.gz
 ```
 
-**Tabela de dados brutos × dados trimados** (número de leituras = linhas do FASTQ ÷ 4):
+**Tabela de dados brutos × dados trimados**, montada a partir dos relatórios do Trimmomatic:
 
 ```bash
-for f in dados/fastq/${AMOSTRA}_R1.fastq.gz resultados/02_trimagem/${AMOSTRA}_R1_paired.fastq.gz; do
-  echo -e "$f\t$(( $(zcat $f | wc -l) / 4 )) leituras"
-done
+echo -e "amostra\tpares_brutos\tpares_mantidos\tpct_aproveitamento" > resultados/02_trimagem/tabela_aproveitamento.tsv
+for A in $(cat dados/amostras.txt); do
+  grep "Input Read Pairs" resultados/02_trimagem/${A}_trimmomatic.log \
+    | awk -v a=$A '{printf "%s\t%s\t%s\t%.1f\n", a, $4, $7, 100*$7/$4}'
+done >> resultados/02_trimagem/tabela_aproveitamento.tsv
+
+cat resultados/02_trimagem/tabela_aproveitamento.tsv
 ```
 
 ---
 
 ## 4ª Etapa — Alinhamento ao genoma de referência (BWA)
 
-**Comando 1** — indexar o genoma (só uma vez para toda a turma; leva ~1 segundo):
+**Comando 1** — indexar o genoma (uma vez só; leva ~1 segundo):
 
 ```bash
 bwa index dados/referencia/genoma_aula.fa
 samtools faidx dados/referencia/genoma_aula.fa
 ```
 
-**Comando 2** — alinhar. Acrescentamos `-R` (*read group*), que grava o nome da amostra no alinhamento. Sem ele, o VCF sairia com o nome do arquivo no lugar do nome da amostra — e não conseguiríamos juntar os 12 pacientes depois.
+**Comando 2** — alinhar as 12 amostras (~1 minuto). Acrescentamos `-R` (*read group*), que grava o nome da amostra no alinhamento. Sem ele, o VCF sairia com o nome do arquivo no lugar do nome da amostra — e não conseguiríamos juntar os 12 pacientes depois.
 
 ```bash
-bwa mem -R "@RG\tID:${AMOSTRA}\tSM:${AMOSTRA}\tPL:ILLUMINA" dados/referencia/genoma_aula.fa \
-  resultados/02_trimagem/${AMOSTRA}_R1_paired.fastq.gz resultados/02_trimagem/${AMOSTRA}_R2_paired.fastq.gz \
-  > resultados/04_alinhamento/${AMOSTRA}.sam
+for A in $(cat dados/amostras.txt); do
+  echo "== Alinhando $A"
+  bwa mem -t 2 -R "@RG\tID:${A}\tSM:${A}\tPL:ILLUMINA" dados/referencia/genoma_aula.fa \
+    resultados/02_trimagem/${A}_R1_paired.fastq.gz resultados/02_trimagem/${A}_R2_paired.fastq.gz \
+    > resultados/04_alinhamento/${A}.sam 2> resultados/04_alinhamento/${A}_bwa.log
+done
 ```
 
-Dê uma olhada no SAM (cabeçalho e primeiras leituras):
+Dê uma olhada no SAM de um paciente (cabeçalho e primeiras leituras):
 
 ```bash
-head -n 20 resultados/04_alinhamento/${AMOSTRA}.sam | cut -c 1-200
+head -n 20 resultados/04_alinhamento/P01.sam | cut -c 1-200
 ```
 
 ---
@@ -108,8 +127,12 @@ head -n 20 resultados/04_alinhamento/${AMOSTRA}.sam | cut -c 1-200
 ## Etapa 5 — Converter SAM em BAM
 
 ```bash
-samtools view -S -b resultados/04_alinhamento/${AMOSTRA}.sam > resultados/04_alinhamento/${AMOSTRA}.bam
-ls -lh resultados/04_alinhamento/
+for A in $(cat dados/amostras.txt); do
+  echo "== Convertendo $A"
+  samtools view -S -b resultados/04_alinhamento/${A}.sam > resultados/04_alinhamento/${A}.bam
+done
+
+ls -lh resultados/04_alinhamento/P01.sam resultados/04_alinhamento/P01.bam
 ```
 
 Compare o tamanho do `.sam` e do `.bam`.
@@ -119,25 +142,35 @@ Compare o tamanho do `.sam` e do `.bam`.
 ## Etapa 6 — Ordenar, indexar e marcar duplicatas
 
 ```bash
-samtools sort resultados/04_alinhamento/${AMOSTRA}.bam -o resultados/04_alinhamento/${AMOSTRA}_sorted.bam
-samtools index resultados/04_alinhamento/${AMOSTRA}_sorted.bam
+for A in $(cat dados/amostras.txt); do
+  echo "== Ordenando e indexando $A"
+  samtools sort resultados/04_alinhamento/${A}.bam -o resultados/04_alinhamento/${A}_sorted.bam
+  samtools index resultados/04_alinhamento/${A}_sorted.bam
+done
 ```
 
-Marcar duplicatas de PCR (recomendado para dados de câncer):
+Marcar duplicatas de PCR (recomendado para dados de câncer; ~1 minuto). As mensagens do Picard vão para um arquivo `_picard.log`:
 
 ```bash
-picard MarkDuplicates \
-  I=resultados/04_alinhamento/${AMOSTRA}_sorted.bam \
-  O=resultados/04_alinhamento/${AMOSTRA}_dedup.bam \
-  M=resultados/04_alinhamento/${AMOSTRA}_dup_metrics.txt
-samtools index resultados/04_alinhamento/${AMOSTRA}_dedup.bam
+for A in $(cat dados/amostras.txt); do
+  echo "== Marcando duplicatas em $A"
+  picard MarkDuplicates \
+    I=resultados/04_alinhamento/${A}_sorted.bam \
+    O=resultados/04_alinhamento/${A}_dedup.bam \
+    M=resultados/04_alinhamento/${A}_dup_metrics.txt \
+    2> resultados/04_alinhamento/${A}_picard.log
+  samtools index resultados/04_alinhamento/${A}_dedup.bam
+done
 ```
 
-Qual a porcentagem de duplicatas? (coluna `PERCENT_DUPLICATION`)
+Qual a porcentagem de duplicatas de cada paciente? (coluna `PERCENT_DUPLICATION` das métricas do Picard)
 
 ```bash
-grep -A1 "^LIBRARY" resultados/04_alinhamento/${AMOSTRA}_dup_metrics.txt | cut -f 3,7,9
-samtools flagstat resultados/04_alinhamento/${AMOSTRA}_dedup.bam
+for A in $(cat dados/amostras.txt); do
+  echo -e "$A\t$(grep -A1 '^LIBRARY' resultados/04_alinhamento/${A}_dup_metrics.txt | tail -1 | cut -f9)"
+done
+
+samtools flagstat resultados/04_alinhamento/P01_dedup.bam
 ```
 
 ---
@@ -145,19 +178,28 @@ samtools flagstat resultados/04_alinhamento/${AMOSTRA}_dedup.bam
 ## Etapa 7 — Chamada e filtragem de variantes (BCFtools)
 
 ```bash
-bcftools mpileup -Ou -f dados/referencia/genoma_aula.fa resultados/04_alinhamento/${AMOSTRA}_dedup.bam \
-  | bcftools call -mv -Ov -o resultados/07_variantes/${AMOSTRA}_variants.vcf
-
-bcftools filter -e 'QUAL<30 || DP<10' -Ov -o resultados/07_variantes/${AMOSTRA}_filtered_variants.vcf \
-  resultados/07_variantes/${AMOSTRA}_variants.vcf
+for A in $(cat dados/amostras.txt); do
+  echo "== Chamando variantes de $A"
+  bcftools mpileup -Ou -f dados/referencia/genoma_aula.fa resultados/04_alinhamento/${A}_dedup.bam 2> /dev/null \
+    | bcftools call -mv -Ov -o resultados/07_variantes/${A}_variants.vcf 2> /dev/null
+  bcftools filter -e 'QUAL<30 || DP<10' -Ov -o resultados/07_variantes/${A}_filtered_variants.vcf \
+    resultados/07_variantes/${A}_variants.vcf
+done
 ```
 
-Quantas variantes antes e depois do filtro? E onde elas estão?
+Quantas variantes cada paciente tem antes e depois do filtro?
 
 ```bash
-grep -vc "^#" resultados/07_variantes/${AMOSTRA}_variants.vcf
-grep -vc "^#" resultados/07_variantes/${AMOSTRA}_filtered_variants.vcf
-bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t[%GT\t%AD]\n' resultados/07_variantes/${AMOSTRA}_filtered_variants.vcf
+echo -e "amostra\tbrutas\tfiltradas"
+for A in $(cat dados/amostras.txt); do
+  echo -e "$A\t$(grep -vc '^#' resultados/07_variantes/${A}_variants.vcf)\t$(grep -vc '^#' resultados/07_variantes/${A}_filtered_variants.vcf)"
+done
+```
+
+E onde elas estão? Veja as variantes de um paciente:
+
+```bash
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t[%GT\t%AD]\n' resultados/07_variantes/P01_filtered_variants.vcf
 ```
 
 Repare na primeira coluna: `TP53`, `BRCA1`... e posições pequenas. São coordenadas **dentro do recorte** de cada gene, não do cromossomo.
@@ -169,31 +211,39 @@ Repare na primeira coluna: `TP53`, `BRCA1`... e posições pequenas. São coorde
 *(Etapa extra, necessária apenas porque usamos o genoma reduzido.)*
 
 ```bash
-bash scripts/restaurar_coordenadas.sh resultados/07_variantes/${AMOSTRA}_filtered_variants.vcf \
-  resultados/07_variantes/${AMOSTRA}_GRCh38.vcf
+for A in $(cat dados/amostras.txt); do
+  bash scripts/restaurar_coordenadas.sh resultados/07_variantes/${A}_filtered_variants.vcf \
+    resultados/07_variantes/${A}_GRCh38.vcf
+done
 
-bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t[%GT\t%AD]\n' resultados/07_variantes/${AMOSTRA}_GRCh38.vcf
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t[%GT\t%AD]\n' resultados/07_variantes/P01_GRCh38.vcf
 ```
 
 Agora `TP53  8480` virou `chr17  7675088`. O script soma o início de cada recorte (tabela `dados/referencia/regioes.tsv`) e também normaliza os indels (`bcftools norm`), como se faz antes de qualquer anotação.
 
 ---
 
-## Processar todos os pacientes de uma vez
+## Etapa 7c — Juntar os 12 pacientes em um único VCF
 
-Para analisar a coorte no maftools precisamos das 12 amostras. O script abaixo repete as Etapas 1 a 7b para cada paciente (mostrando cada comando) e junta tudo em um único VCF (~4 minutos):
-
-```bash
-bash scripts/rodar_pipeline.sh
-```
-
-Ao final: `resultados/resumo_qc.tsv` (tabela de aproveitamento, duplicatas e profundidade de todas as amostras) e **`resultados/08_para_o_VEP/coorte_GRCh38.vcf`**, o arquivo que vai para o VEP.
+O VEP online recebe um arquivo só. O `bcftools merge` junta os VCFs lado a lado: uma linha por variante, uma coluna por paciente. Antes, cada VCF precisa ser compactado (`bgzip`) e indexado:
 
 ```bash
-cat resultados/resumo_qc.tsv
+for A in $(cat dados/amostras.txt); do
+  bgzip -f -k resultados/07_variantes/${A}_GRCh38.vcf
+  bcftools index -f resultados/07_variantes/${A}_GRCh38.vcf.gz
+done
+
+bcftools merge -Ov -o resultados/08_para_o_VEP/coorte_GRCh38.vcf resultados/07_variantes/*_GRCh38.vcf.gz
+
+grep -vc "^#" resultados/08_para_o_VEP/coorte_GRCh38.vcf
 ```
 
-> Se você travou em alguma etapa individual, este script também serve de "resgate": ele gera tudo de que você precisa para continuar.
+**`resultados/08_para_o_VEP/coorte_GRCh38.vcf`** é o arquivo que vai para o VEP.
+
+> **Se você se perdeu em alguma etapa:** o script abaixo refaz as Etapas 1 a 7c para os 12 pacientes (~4 minutos), mostrando cada comando, e deixa tudo pronto para a Etapa 8. Ele também gera `resultados/resumo_qc.tsv`, com aproveitamento, duplicatas e profundidade de todas as amostras.
+> ```bash
+> bash scripts/rodar_pipeline.sh
+> ```
 
 ---
 
@@ -268,9 +318,10 @@ Ou, para ir passo a passo, abra o R digitando `R` no terminal e rode os blocos d
 
 | Sintoma | Solução |
 |---|---|
-| `ls` e os comandos não mostram nada (só as mensagens de erro aparecem) | As linhas ```` ```bash ```` foram coladas junto com os comandos e o terminal ficou preso. Feche o terminal (🗑), abra outro e rode `AMOSTRA=P01` de novo |
+| `ls` e os comandos não mostram nada (só as mensagens de erro aparecem) | As linhas ```` ```bash ```` foram coladas junto com os comandos e o terminal ficou preso. Feche o terminal (🗑) e abra outro |
 | `command not found: fastqc` (ou bwa, samtools...) | O ambiente não está ativo: `micromamba activate aula-variantes` |
-| `No such file or directory` com `_R1.fastq.gz` | A variável sumiu (terminal novo). Rode `AMOSTRA=P01` de novo |
+| `No such file or directory` dentro de um `for` | Uma etapa anterior não terminou para todas as amostras. Volte à etapa anterior ou rode `bash scripts/rodar_pipeline.sh` |
+| `cat: dados/amostras.txt: No such file or directory` | O terminal não está na pasta do projeto. Rode `cd /workspaces/aula-variantes-cancer` |
 | `[E::bwa_idx_load_from_disk] fail to locate the index` | Faltou o `bwa index` da Etapa 4 |
 | `bcftools merge`: *Duplicate sample names* | O BAM foi gerado sem `-R` no `bwa mem` |
 | VEP: *chromosome not found* / variantes nos lugares errados | Faltou a Etapa 7b (o VCF ainda tem `TP53`, `BRCA1`... na 1ª coluna) |

@@ -53,6 +53,7 @@ Executa as Etapas 1 a 7 para os 12 pacientes (mostrando cada comando na tela) e 
 ├── GUIA_DA_AULA.md                 ← roteiro passo a passo
 ├── dados/
 │   ├── fastq/                      12 pacientes simulados (P01…P12), leituras pareadas 2×150 pb
+│   ├── amostras.txt                lista dos 12 pacientes (usada nos laços do guia)
 │   ├── referencia/
 │   │   ├── genoma_aula.fa          genoma reduzido: regiões de 13 genes do GRCh38 (~1,2 Mb)
 │   │   ├── regioes.tsv             onde cada recorte fica no GRCh38 (usado na Etapa 7b)
