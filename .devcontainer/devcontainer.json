@@ -1,0 +1,28 @@
+{
+  "name": "Aula — Pipeline de análise de variantes (câncer)",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "4gb",
+    "storage": "32gb"
+  },
+  "onCreateCommand": "bash instalar.sh",
+  "postAttachCommand": "echo; echo 'Bem-vindo(a)! Confira o ambiente com:  bash scripts/verificar_ambiente.sh'; echo 'Roteiro da aula: GUIA_DA_AULA.md'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "mechatroner.rainbow-csv",
+        "ms-vscode.live-server"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "workbench.startupEditor": "none"
+      }
+    },
+    "codespaces": {
+      "openFiles": [
+        "GUIA_DA_AULA.md"
+      ]
+    }
+  }
+}

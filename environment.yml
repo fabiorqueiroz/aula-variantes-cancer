@@ -1,0 +1,17 @@
+# Ambiente da aula "Pipeline para análise de variantes genéticas"
+# Versões testadas em out/2026. Instalação: bash instalar.sh
+name: aula-variantes
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - fastqc=0.13.0
+  - trimmomatic=0.40
+  - bwa=0.7.19
+  - samtools=1.24
+  - bcftools=1.24
+  - htslib=1.24
+  - picard=3.5.0
+  - r-base=4.4.1
+  - bioconductor-maftools=2.22.0
+  - r-dplyr=1.2.1

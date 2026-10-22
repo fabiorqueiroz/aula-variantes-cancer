@@ -1,0 +1,13 @@
+Tumor_Sample_Barcode	Sexo	Idade	Tipo_tumoral	Diagnostico	Historia_familiar	tempo_meses	status
+P01	F	38	Mama	Carcinoma de mama triplo-negativo	Mae e tia com cancer de mama antes dos 50 anos	41	0
+P02	F	56	Ovario	Carcinoma seroso de alto grau de ovario	Irma com cancer de mama aos 48 anos	28	1
+P03	F	29	Mama	Carcinoma de mama	Irmao com osteossarcoma aos 15 anos; pai com sarcoma de partes moles aos 40	36	0
+P04	M	45	Colorretal	Adenocarcinoma colorretal (colon direito)	Pai com cancer colorretal aos 50; tia com cancer de endometrio	52	0
+P05	F	48	Endometrio	Adenocarcinoma de endometrio	Mae com cancer colorretal aos 46	60	0
+P06	M	26	Colorretal	Adenocarcinoma colorretal com centenas de polipos	Pai com colectomia aos 30 anos	22	1
+P07	F	61	Pulmao	Adenocarcinoma de pulmao (nao tabagista; progressao apos inibidor de EGFR)	Sem historia relevante	18	1
+P08	F	47	Mama	Carcinoma de mama RH+/HER2-	Avo paterna com cancer de mama; tio com cancer de pancreas	55	0
+P09	M	58	Melanoma	Melanoma cutaneo	Sem historia relevante	30	1
+P10	F	34	Gastrico	Adenocarcinoma gastrico difuso (celulas em anel de sinete)	Pai com cancer gastrico aos 40 anos; prima com carcinoma lobular de mama	14	1
+P11	F	41	Mama	Carcinoma de mama triplo-negativo	Mae com cancer de ovario aos 52	48	0
+P12	F	52	Pulmao	Adenocarcinoma de pulmao (nao tabagista)	Ascendencia judaica asquenaze; pai com cancer colorretal aos 70	26	0

@@ -1,0 +1,7 @@
+# Resultados gerados durante a aula
+resultados/
+# Índices do genoma (gerados pelo bwa index / samtools faidx)
+dados/referencia/genoma_aula.fa.*
+.Rhistory
+.RData
+*.Rout
