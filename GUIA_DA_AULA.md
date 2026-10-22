@@ -12,6 +12,10 @@ Este guia segue as mesmas etapas do roteiro da aula, já com os caminhos dos arq
 
 ## Antes de começar
 
+> **Como copiar os comandos:** copie só o texto de dentro dos quadros cinza. Nunca copie as linhas ```` ```bash ```` e ```` ``` ```` que aparecem quando o arquivo é aberto como texto. Se colar essas linhas por engano, o terminal fica "preso": `ls` e os outros comandos param de mostrar resultados. Nesse caso, feche o terminal (ícone de lixeira 🗑) e abra outro (menu ☰ → *Terminal* → *New Terminal*).
+>
+> Para ver o guia formatado: botão direito em `GUIA_DA_AULA.md` → **Open Preview**.
+
 Confira se o ambiente está pronto:
 
 ```bash
@@ -264,6 +268,7 @@ Ou, para ir passo a passo, abra o R digitando `R` no terminal e rode os blocos d
 
 | Sintoma | Solução |
 |---|---|
+| `ls` e os comandos não mostram nada (só as mensagens de erro aparecem) | As linhas ```` ```bash ```` foram coladas junto com os comandos e o terminal ficou preso. Feche o terminal (🗑), abra outro e rode `AMOSTRA=P01` de novo |
 | `command not found: fastqc` (ou bwa, samtools...) | O ambiente não está ativo: `micromamba activate aula-variantes` |
 | `No such file or directory` com `_R1.fastq.gz` | A variável sumiu (terminal novo). Rode `AMOSTRA=P01` de novo |
 | `[E::bwa_idx_load_from_disk] fail to locate the index` | Faltou o `bwa index` da Etapa 4 |
